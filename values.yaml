@@ -3,7 +3,7 @@
 # Declare variables to be passed into your templates.
 
 # This should be at least 3
-replicaCount: 3
+replicaCount: 1
 
 image:
   repository: dustinrue/proxysql
@@ -48,8 +48,8 @@ proxysql:
     # See https://proxysql.com/documentation/main-runtime/#mysql_users
     # and https://proxysql.com/documentation/Users-configuration/
     users:
-      - username: "root"
-        password: "fphzL9v8NufZqftH"
+      - username: "SYS"
+        password: "Kube#adria#2024"
 
   # Should ProxySQL configuration be backed by an actual volume?
   # If set to 'false' the configuration will be stored in an emptyDir
@@ -61,37 +61,46 @@ proxysql:
   # Using persistent storage is more durable
   storage:
     persistent: false
-    storageClass: ""
+    storageClass: "standard"
 
   # Define custom configuration values here. This configuration 
   # snippet will be appended to the proxy.cnf file.
-  # customConfiguration: |
-  #   mysql_query_rules:
-  #   (
-  #     {
-  #       rule_id=1
-  #       active=1
-  #       match_pattern="^SELECT .* FOR UPDATE$"
-  #       destination_hostgroup=0
-  #       apply=1
-  #     },
-  #     {
-  #       rule_id=2
-  #       active=1
-  #       match_pattern="^SELECT"
-  #       destination_hostgroup=1
-  #       apply=1
-  #     }
-  #   )
+  customConfiguration: |
+    # Query Rules for Read/Write Split
+    mysql_query_rules:
+    (
+      {
+        rule_id=1
+        active=1
+        match_pattern="^(SELECT|WITH)"  # Match SELECT and CTEs
+        destination_hostgroup=1  # Send to reader group
+        apply=1
+      },
+      {
+        rule_id=2
+        active=1
+        match_pattern=".*"  # Catch-all for writes
+        destination_hostgroup=0  # Send to writer group
+        apply=1
+      }
+    )
 
-  #   mysql_replication_hostgroups=
-  #   (
-  #     {
-  #       writer_hostgroup=0
-  #       reader_hostgroup=1
-  #       comment="RHG1"
-  #     }
-  #   )
+    # Hostgroups for Writer (Primary) and Reader (Standby)
+    mysql_servers:
+    (
+      {
+        hostgroup_id=0  # Writer
+        hostname="adria-ora-sidb-primary"  # Primary SIDB Service
+        port=1521  # Oracle Listener Port
+        status="ONLINE"
+      },
+      {
+        hostgroup_id=1  # Reader
+        hostname="adria-ora-sidb-standby"  # Standby SIDB Service
+        port=1521
+        status="ONLINE"
+      }
+    )
     
 serviceAccount:
   # Specifies whether a service account should be created

@@ -29,7 +29,7 @@ data:
     mysql_variables=
     {
       threads=2
-      max_connections=2048
+      max_connections=6000
       default_query_delay=0
       default_query_timeout=36000000
       have_compress=true
